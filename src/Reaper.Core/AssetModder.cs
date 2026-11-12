@@ -358,7 +358,12 @@ public sealed class AssetModder : IDisposable
     }
     private static void ReplaceTexture(AssetTypeValueField field, byte[] pixels, int width, int height)
     {
-        byte[] encoded = TextureFile.EncodeManagedData(pixels, TextureFormat.RGBA32, width, height, false);
+        // Preview/import buffers start at the top left; Unity stores RGBA32 rows bottom first.
+        // EncodeManagedData in the bundled codec does not flip raw pixels for us.
+        int stride = checked(width * 4);
+        byte[] encoded = new byte[checked(stride * height)];
+        for (int row = 0; row < height; row++)
+            pixels.AsSpan(row * stride, stride).CopyTo(encoded.AsSpan((height - 1 - row) * stride, stride));
         field["m_Width"].AsInt = width; field["m_Height"].AsInt = height; field["m_TextureFormat"].AsInt = (int)TextureFormat.RGBA32;
         field["m_CompleteImageSize"].AsInt = encoded.Length;
         if (!field["m_MipCount"].IsDummy) field["m_MipCount"].AsInt = 1;
