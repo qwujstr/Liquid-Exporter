@@ -68,5 +68,3 @@ Liquid is built on the work of these original authors and contributors:
 | [Eclipse Temurin / OpenJDK](https://github.com/adoptium/temurin25-binaries) | Eclipse Adoptium, OpenJDK authors and contributors | [GPL-2.0](https://github.com/adoptium/jdk25u/blob/master/LICENSE) with [Classpath Exception](https://github.com/adoptium/jdk25u/blob/master/ADDITIONAL_LICENSE_INFO) |
 
 </details>
-
-Liquid's own code is © 2026 QWU and licensed under [MIT](LICENSE). Third-party components retain their original licenses; their license texts and runtime notices are included in the distribution. See [full notices](docs/THIRD-PARTY-NOTICES.md) for component versions and source links.
