@@ -1,0 +1,14 @@
+.packages/
+engines/
+dist/
+releases/
+artifacts/
+**/bin/
+**/obj/
+test-output/
+.vs/
+*.user
+*.suo
+docs/CLEANUP-REPORT.json
+docs/UI-VALIDATION.json
+docs/liquid-editor-validation.json

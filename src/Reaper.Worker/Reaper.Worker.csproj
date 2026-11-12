@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Reaper.Worker</AssemblyName>
+    <RootNamespace>Il2CppDumper</RootNamespace>
+    <StartupObject>Reaper.Worker.Program</StartupObject>
+    <Nullable>disable</Nullable>
+    <DumperRoot>$(NativeSourceRoot)Il2CppDumper-master\Il2CppDumper-master\Il2CppDumper</DumperRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Reaper.Core\Reaper.Core.csproj" />
+    <ProjectReference Include="$(NativeSourceRoot)Cpp2IL-development\Cpp2IL-development\Cpp2IL.Core\Cpp2IL.Core.csproj" AdditionalProperties="GeneratePackageOnBuild=false;PublishTrimmed=false" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.4" />
+    <PackageReference Include="ICSharpCode.Decompiler" Version="9.1.0.7988" />
+    <PackageReference Include="Iced" Version="1.21.0" />
+    <Compile Include="$(DumperRoot)\**\*.cs" Exclude="$(DumperRoot)\Program.cs;$(DumperRoot)\Utils\PELoader.cs;$(DumperRoot)\Utils\OpenFileDialog.cs;$(DumperRoot)\Utils\FileDialogNative.cs;$(DumperRoot)\obj\**;$(DumperRoot)\bin\**" Link="Il2CppDumper\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Content Include="..\..\tools\ghidra\LiquidAnalyze.java" Link="ghidra\LiquidAnalyze.java" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="$(DumperRoot)\Resource1.resx" LogicalName="Il2CppDumper.Resource1.resources" />
+  </ItemGroup>
+</Project>

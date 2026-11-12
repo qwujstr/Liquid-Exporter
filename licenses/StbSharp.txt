@@ -1,0 +1,11 @@
+StbImageSharp 2.30.16 — StbImageSharpTeam
+https://github.com/StbSharp/StbImageSharp
+NuGet license: Unlicense OR MIT. Upstream README: Public Domain or MIT.
+Used under the public-domain option.
+
+StbImageWriteSharp 1.16.7 — StbImageWriteSharpTeam
+https://github.com/StbSharp/StbImageWriteSharp
+Upstream README: Public Domain.
+
+Both are C# ports of stb by Sean Barrett and contributors:
+https://github.com/nothings/stb
