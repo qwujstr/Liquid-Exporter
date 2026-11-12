@@ -1,10 +1,7 @@
 <p align="center"><img src="assets/appicon.png" width="88" alt="Liquid"></p>
 <h1 align="center">Liquid</h1>
 <p align="center">Export Unity assets and scripts. Edit game files in one app.</p>
-<p align="center">
-  <a href="https://github.com/qwujstr/Liquid-Exporter/releases/latest"><img src="assets/readme/download-windows.svg" width="280" height="48" alt="Download for Windows x64"></a>&nbsp;&nbsp;
-  <a href="https://donatepay.eu/don/qwu"><img src="assets/readme/support.svg" width="154" height="48" alt="Support QWU on DonatePay"></a>
-</p>
+[Download for Windows](https://github.com/qwujstr/Liquid-Exporter/releases/latest) · [Support](https://donatepay.eu/don/qwu)
 
 ## Asset Editor
 
