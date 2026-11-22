@@ -1,6 +1,7 @@
 .packages/
 engines/
 dist/
+/build/
 releases/
 artifacts/
 **/bin/
@@ -12,3 +13,4 @@ test-output/
 docs/CLEANUP-REPORT.json
 docs/UI-VALIDATION.json
 docs/liquid-editor-validation.json
+src/*/target/

@@ -1,20 +1,18 @@
 # Build Liquid
 
-Install .NET SDK 10. From the repository root:
+Install .NET SDK 10 and Rust. Run `rustup target add wasm32-unknown-unknown` once to enable the Sprite Editor's Rust pixel engine. From the repository root, run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\build.ps1 -SelfContained
 ```
 
-Output: dist/Liquid.exe. Share the complete dist folder.
+Launch `build/Liquid Exporter/Liquid Exporter.exe`. To share the portable build, keep `Liquid Exporter.exe` and its `app` folder together. Windows x64 and the WebView2 Runtime are required.
 
-A full native worker build also needs Cpp2IL-development/Cpp2IL-development and Il2CppDumper-master/Il2CppDumper-master in the parent workspace. setup-native.ps1 applies the recovery diagnostic patch to the supplied Cpp2IL source; preserve your matching checkout when changing the worker.
-
-To rebuild the UI and asset editor with the released worker, extract a portable release into dist first, then run:
+The native worker build needs matching Cpp2IL and Il2CppDumper source checkouts in the parent workspace. To rebuild the app with an existing worker, place its complete worker directory in `dist/worker`, `dist/app/worker`, or `build/Liquid Exporter/app/worker` and run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1 -SelfContained -AppOnly
 ```
 
-This rebuilds the application/core and preserves dist/worker. Setup scripts download pinned dependencies when missing; .packages is the local NuGet cache.
+Add `-IncludeGhidra` to bundle the optional Ghidra and Java fallback for script recovery. The standard build includes AssetRipper for project and asset export, the native scripts worker, and the Unity type database for Asset Editor.

@@ -1,5 +1,5 @@
 <p align="center"><img src="assets/appicon.png" width="88" alt="Liquid"></p>
-<h1 align="center">Liquid</h1>
+<h1 align="center">Liquid Exporter</h1>
 <p align="center">Export Unity assets and scripts. Edit game files in one app.</p>
 
 <p align="center">
@@ -29,7 +29,7 @@
 
 ## Run
 
-Download a release ZIP, extract **everything** and run **Liquid.exe**. Requires Windows x64 and WebView2; .NET is included.
+Download a release ZIP, extract **everything** and run **Liquid Exporter.exe** or use the included shortcut. Requires Windows x64 and WebView2; .NET is included.
 
 In Asset Editor, choose **Open Folder** or **Open File**. **Save** writes changes back to the game files without creating backups. Audio can be previewed/exported; direct WAV replacement is not supported. Script recovery can be incomplete—check `script-report.json`.
 

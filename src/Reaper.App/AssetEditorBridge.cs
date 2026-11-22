@@ -65,7 +65,7 @@ public sealed partial class MainForm
                     }
                     if (HasEditorChanges)
                     {
-                        var answer = MessageBox.Show(this, "Save your asset changes before opening another game?", "Liquid", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                        var answer = MessageBox.Show(this, "Save your asset changes before opening another game?", "Liquid Exporter", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                         if (answer == DialogResult.Cancel) { Send(new { type = "editorIdle" }); return; }
                         if (answer == DialogResult.Yes) await Task.Run(SaveEditorChanges);
                     }
@@ -84,6 +84,87 @@ public sealed partial class MainForm
                     RequireEditor();
                     var preview = await Task.Run(() => modder!.Preview(fileId, assetId));
                     Send(new { type = "editorPreview", requestId, value = preview });
+                    break;
+                case "editorImageApply":
+                    RequireEditor();
+                    string imageData = Value("png");
+                    if (imageData.Length > 90_000_000) throw new InvalidDataException("Image is too large.");
+                    byte[] imageBytes = Convert.FromBase64String(imageData);
+                    await Task.Run(() => modder!.ImportImage(fileId, assetId, imageBytes));
+                    Send(new { type = "editorChanged", files = EditorFiles() });
+                    break;
+                case "editorImagePaste":
+                    using (var png = new MemoryStream())
+                    {
+                        if (Clipboard.TryGetData<byte[]>("PNG", out var pngBytes) && pngBytes is not null)
+                            png.Write(pngBytes);
+                        else if (Clipboard.TryGetData<MemoryStream>("PNG", out var originalPng) && originalPng is not null)
+                        {
+                            using (originalPng) originalPng.CopyTo(png);
+                        }
+                        else
+                        {
+                            using var image = Clipboard.GetImage() ?? throw new IOException("The clipboard contains no image.");
+                            image.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+                        }
+                        if (png.Length > 64 * 1024 * 1024) throw new IOException("The clipboard image is too large.");
+                        Send(new { type = "editorClipboardImage", requestId, png = Convert.ToBase64String(png.ToArray()) });
+                    }
+                    break;
+                case "editorStructure":
+                    RequireEditor();
+                    var structure = await Task.Run(() => modder!.ReadStructure(fileId, assetId, Value("path"),
+                        message.TryGetProperty("offset", out var pageOffset) ? Math.Max(0, pageOffset.GetInt32()) : 0));
+                    Send(new { type = "editorStructure", requestId, value = structure });
+                    break;
+                case "editorListThumbnails":
+                    RequireEditor();
+                    var assetIds = message.GetProperty("assetIds").EnumerateArray().Take(4)
+                        .Select(value => value.GetString() ?? "").Distinct().ToArray();
+                    var thumbnails = await Task.Run(() => assetIds.Select(asset =>
+                    {
+                        string? image = null;
+                        try { image = modder!.AssetThumbnail(fileId, asset); }
+                        catch { /* An unsupported texture keeps its generic icon. */ }
+                        return new { assetId = asset, image };
+                    }).ToArray());
+                    Send(new { type = "editorListThumbnails", requestId, fileId, thumbnails });
+                    break;
+                case "editorThumbnail":
+                    RequireEditor();
+                    string? thumbnail = null;
+                    try { thumbnail = await Task.Run(() => modder!.StructureThumbnail(fileId, assetId, Value("path"))); }
+                    catch { /* The field remains inspectable without its image. */ }
+                    Send(new { type = "editorThumbnail", requestId, image = thumbnail });
+                    break;
+                case "editorFindReference":
+                    RequireEditor();
+                    var choices = await Task.Run(() => modder!.FindReferences(message.GetProperty("classId").GetInt32(), Value("query")));
+                    Send(new { type = "editorReferenceChoices", requestId, choices });
+                    break;
+                case "editorSetField":
+                case "editorSetReference":
+                case "editorAddSprite":
+                case "editorSchemas":
+                    RequireEditor();
+                    if (action == "editorSchemas")
+                    {
+                        using var picker = new FolderBrowserDialog { Description = "Choose Managed or exported Scripts/Assemblies", UseDescriptionForTitle = true };
+                        if (picker.ShowDialog(this) != DialogResult.OK) { Send(new { type = "editorStructureIdle" }); break; }
+                        await Task.Run(() => modder!.UseManagedSchemas(picker.SelectedPath));
+                    }
+                    else if (action == "editorSetField")
+                        await Task.Run(() => modder!.SetStructureValue(fileId, assetId, Value("path"), Value("value")));
+                    else if (action == "editorSetReference")
+                        await Task.Run(() => modder!.ReplaceReference(fileId, assetId, Value("path"), Value("targetFile"), Value("targetAsset")));
+                    else
+                    {
+                        using var picker = new OpenFileDialog { Title = "Import a custom sprite", Filter = "PNG image|*.png" };
+                        if (picker.ShowDialog(this) != DialogResult.OK) { Send(new { type = "editorStructureIdle" }); break; }
+                        var bytes = await File.ReadAllBytesAsync(picker.FileName);
+                        await Task.Run(() => modder!.ImportReferenceSprite(fileId, assetId, Value("path"), picker.FileName, bytes));
+                    }
+                    Send(new { type = "editorStructureChanged", files = EditorFiles() });
                     break;
                 case "editorExport":
                     RequireEditor();
@@ -124,7 +205,7 @@ public sealed partial class MainForm
                     break;
             }
         }
-        catch (Exception ex) { Send(new { type = "editorError", requestId, message = ex.Message }); }
+        catch (Exception ex) { Send(new { type = "editorError", requestId, action, message = ex.Message }); }
         finally { editorGate.Release(); }
     }
     private void RequireEditor() { if (modder is null) throw new InvalidOperationException("Open a game folder first."); }

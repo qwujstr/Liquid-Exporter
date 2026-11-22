@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'"><title>Liquid</title><link rel="stylesheet" href="style.css"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; media-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'"><title>Liquid Exporter</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="asset-tools.css"><link rel="stylesheet" href="sprite-editor.css"></head><body>
 <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9L14 3Z M14 3v6h6 M8 13h8 M8 17h6"/></symbol>
   <symbol id="i-cube" viewBox="0 0 24 24"><path d="m12 3 9 5v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5"/></symbol>
@@ -34,7 +34,7 @@
 <p id="editor-root" class="editor-root"></p>
 <div class="editor-shell"><div id="editor-tabs" class="editor-tabs" role="tablist" aria-label="Unity files"></div>
 <div class="editor-toolbar"><input id="editor-search" type="search" data-placeholder="searchAssets" spellcheck="false" disabled><select id="editor-type" disabled aria-label="Asset type"><option value="" data-i18n="allTypes"></option></select><button id="editor-undo" class="glass-button" disabled data-i18n="undo"></button><span id="editor-state" role="status"></span></div>
-<div id="editor-layout" class="editor-layout"><aside class="editor-preview"><div id="editor-preview-empty" class="editor-preview-placeholder" role="status"><video id="editor-preview-video" src="assets/loadinganimation.mp4" muted loop playsinline preload="metadata" aria-hidden="true"></video><p id="editor-preview-message" data-i18n="selectAsset"></p></div><div id="editor-preview-content" hidden><h2 id="editor-asset-name"></h2><p id="editor-asset-info"></p><div class="editor-asset-actions"><select id="editor-format" aria-label="Asset format"><option value="decoded" data-i18n="decodedAsset"></option><option value="dump" data-i18n="jsonDump"></option><option value="raw" data-i18n="rawAsset"></option></select><div><button id="editor-export" class="glass-button" data-i18n="start"></button><button id="editor-import" class="glass-button" data-i18n="replaceAsset"></button></div></div><div id="editor-image-wrap" hidden tabindex="0" role="region" aria-label="Image preview"><img id="editor-image" alt="Asset preview" draggable="false"><div id="editor-image-bounds" aria-hidden="true"></div></div><audio id="editor-audio" controls hidden preload="metadata"></audio><textarea id="editor-text-edit" hidden spellcheck="false" wrap="off" data-label="textAssetEditor"></textarea><pre id="editor-text" hidden></pre><p id="editor-preview-error" hidden></p></div></aside><div id="editor-divider" class="editor-divider" role="separator" aria-orientation="vertical" tabindex="0"></div>
+<div id="editor-layout" class="editor-layout"><aside class="editor-preview"><div id="editor-preview-empty" class="editor-preview-placeholder" role="status"><video id="editor-preview-video" src="assets/loadinganimation.mp4" muted loop playsinline preload="metadata" aria-hidden="true"></video><p id="editor-preview-message" data-i18n="selectAsset"></p></div><div id="editor-preview-content" hidden><h2 id="editor-asset-name"></h2><p id="editor-asset-info"></p><div class="editor-asset-actions"><select id="editor-format" aria-label="Asset format"><option value="decoded" data-i18n="decodedAsset"></option><option value="dump" data-i18n="jsonDump"></option><option value="raw" data-i18n="rawAsset"></option></select><div><button id="editor-export" class="glass-button" data-i18n="start"></button><button id="editor-import" class="glass-button" data-i18n="replaceAsset"></button></div></div><div class="editor-feature-actions"><button id="editor-paint-open" class="glass-button" hidden>Edit image</button><button id="editor-structure-open" class="glass-button" hidden>Inspect data</button></div><div id="editor-image-wrap" hidden tabindex="0" role="region" aria-label="Image preview"><img id="editor-image" alt="Asset preview" draggable="false"><div id="editor-image-bounds" aria-hidden="true"></div></div><audio id="editor-audio" controls hidden preload="metadata"></audio><textarea id="editor-text-edit" hidden spellcheck="false" wrap="off" data-label="textAssetEditor"></textarea><pre id="editor-text" hidden></pre><p id="editor-preview-error" hidden></p></div></aside><div id="editor-divider" class="editor-divider" role="separator" aria-orientation="vertical" tabindex="0"></div>
 <div class="editor-list"><div id="editor-scroll" class="editor-table-scroll"><table class="editor-table"><thead><tr><th data-i18n="assetName"></th><th data-i18n="assetType"></th><th>Path ID</th><th data-i18n="assetSize"></th></tr></thead><tbody id="editor-rows"></tbody></table><div id="editor-empty" class="editor-empty" data-i18n="openGameHint"></div></div></div></div><div id="editor-height-divider" class="editor-height-divider" role="separator" aria-orientation="horizontal" tabindex="0"></div></div>
 </section>
 <section id="page-results" class="page secondary-page"><h1 data-i18n="results"></h1><div id="result-list"><div class="empty-state" data-i18n="noResults"></div></div></section>
@@ -51,4 +51,34 @@
 <div class="settings-card"><div class="path-row"><div class="path-content"><label for="AssetRipperPath" data-i18n="engine"></label><input id="AssetRipperPath" placeholder="AssetRipper.GUI.Free.exe"></div><button class="glass-button" data-browse="AssetRipperPath" data-i18n="browse"></button></div></div>
 <button class="glass-button" data-page="export" data-i18n="back"></button></section></main>
 <section id="loading" hidden aria-live="polite"><div class="loading-center"><div class="video-wrap"><video id="loading-video" src="assets/loadinganimation.mp4" muted loop playsinline preload="metadata"></video></div><h1 id="loading-stage"></h1><p id="loading-detail"></p><div class="progress-track" role="progressbar" aria-label="Export progress"><div id="progress-fill"></div></div><div class="progress-meta"><span id="progress-caption"></span><span id="elapsed">00:00</span></div><div class="loading-actions"><button id="toggle-log" class="glass-button" data-i18n="showLog"></button><button id="cancel" class="text-button" data-i18n="cancel"></button></div></div><pre id="live-log" hidden></pre></section>
-<div id="toast" role="alert" hidden><span id="toast-message"></span><button id="dismiss-toast" aria-label="Close">×</button></div><script src="locales.js"></script><script src="locales.extra.js"></script><script src="app.js"></script><script src="editor.js"></script></body></html>
+<dialog id="paint-dialog" class="asset-dialog">
+  <header><h2>Sprite Editor</h2><button id="paint-close" class="glass-button">Close</button></header>
+  <div class="asset-dialog-toolbar" id="paint-options">
+    <label>Color <input id="paint-color" type="color" value="#ff7a6e"></label>
+    <label id="paint-size-option">Size <input id="paint-size" type="range" min="1" max="64" value="5"><output id="paint-size-value">5 px</output></label>
+    <label id="paint-hue-option" hidden>Hue <input id="paint-hue" type="range" min="-180" max="180" value="45"><output id="paint-hue-value">45°</output></label>
+    <button id="paint-paste" class="glass-button">Paste image</button>
+    <button id="paint-undo" class="glass-button" disabled>Undo</button>
+    <button id="paint-redo" class="glass-button" disabled>Redo</button>
+    <button id="paint-fit" class="glass-button" title="Fit view (0)">Fit</button>
+    <button id="paint-actual" class="glass-button" title="Actual size (1)">100%</button>
+    <label title="Show pixel grid at high zoom"><input id="paint-grid" type="checkbox" checked> Grid</label>
+  </div>
+  <div class="paint-workspace">
+    <div id="paint-tools" role="toolbar" aria-label="Editing tools"></div>
+    <div id="paint-viewport" tabindex="0" aria-label="Canvas. Scroll to zoom. Hold Space and drag to pan.">
+      <div id="paint-plane"><canvas id="paint-canvas"></canvas><div id="paint-pixels" aria-hidden="true"></div></div>
+      <div id="paint-selection" hidden aria-hidden="true"></div>
+      <div id="paint-cursor" hidden aria-hidden="true"></div>
+    </div>
+  </div>
+  <footer><span id="paint-status" role="status"></span><button id="paint-apply" class="glass-button primary" disabled>Apply to asset</button></footer>
+</dialog>
+<dialog id="structure-dialog" class="asset-dialog">
+  <header><h2 id="structure-title">Asset data</h2><button id="structure-schemas" class="glass-button">Script schemas</button><button id="structure-close" class="glass-button">Close</button></header>
+  <div class="asset-dialog-toolbar"><button id="structure-up" class="glass-button">Up</button><span id="structure-path"></span></div>
+  <div id="structure-rows"></div>
+  <div id="structure-picker" hidden><label>Find an asset <input id="structure-search" type="search" placeholder="Name or Path ID"></label><div id="structure-choices"></div></div>
+  <footer><span id="structure-status" role="status"></span><button id="structure-more" class="glass-button" hidden>Show more</button></footer>
+</dialog>
+<div id="toast" role="alert" hidden><span id="toast-message"></span><button id="dismiss-toast" aria-label="Close">×</button></div><script src="locales.js"></script><script src="locales.extra.js"></script><script src="app.js"></script><script src="editor-thumbnails.js"></script><script src="editor.js"></script><script src="sprite-editor.js"></script><script src="asset-tools.js"></script></body></html>

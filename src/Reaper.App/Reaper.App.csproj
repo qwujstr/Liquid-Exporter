@@ -4,8 +4,8 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Liquid</AssemblyName>
-    <Product>Liquid</Product>
-    <Title>Liquid</Title>
+    <Product>Liquid Exporter</Product>
+    <Title>Liquid Exporter</Title>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
   </PropertyGroup>
@@ -17,5 +17,13 @@
   </ItemGroup>
   <Target Name="RemoveUnusedWpfWebView" BeforeTargets="ResolveAssemblyReferences">
     <ItemGroup><Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" /></ItemGroup>
+  </Target>
+  <Target Name="CreatePortableLauncher" AfterTargets="Publish" Condition="'$(LiquidLauncherPath)' != ''">
+    <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
+                   AppHostDestinationPath="$(LiquidLauncherPath)"
+                   AppBinaryName="app\Liquid.dll"
+                   IntermediateAssembly="@(IntermediateAssembly->'%(FullPath)')"
+                   WindowsGraphicalUserInterface="true" />
+    <Delete Files="$(PublishDir)Liquid.exe" />
   </Target>
 </Project>

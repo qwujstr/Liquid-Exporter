@@ -21,9 +21,11 @@ function editorRenderRows(){
  space(begin*editorRowHeight);
  for(let index=begin;index<end;index++){
   const asset=editorRows[index],row=document.createElement('tr');row.tabIndex=0;row.classList.toggle('modified',asset.Modified||editorDrafts.has(editorDraftKey(editorFileId,asset.Id)));row.classList.toggle('selected',editorSelection?.Id===asset.Id);row.dataset.asset=asset.Id;row.setAttribute('aria-rowindex',String(index+2));
-  for(const text of [asset.Name,asset.Type,asset.PathId,editorSize(asset.Size)]){const cell=document.createElement('td');cell.textContent=text;cell.title=text;row.append(cell);}row.onclick=()=>editorSelect(asset);row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();editorSelect(asset);}};fragment.append(row);
+  for(const text of [asset.Name,asset.Type,asset.PathId,editorSize(asset.Size)]){const cell=document.createElement('td');cell.textContent=text;cell.title=text;row.append(cell);}
+  decorateAssetName(row.firstElementChild,asset);
+  row.onclick=()=>editorSelect(asset);row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();editorSelect(asset);}};fragment.append(row);
  }
- space(Math.max(0,editorRows.length-end)*editorRowHeight);body.replaceChildren(fragment);body.closest('table').setAttribute('aria-rowcount',String(editorRows.length+1));
+ space(Math.max(0,editorRows.length-end)*editorRowHeight);body.replaceChildren(fragment);scheduleAssetThumbnails();body.closest('table').setAttribute('aria-rowcount',String(editorRows.length+1));
 }
 $('editor-scroll').addEventListener('scroll',()=>{cancelAnimationFrame(editorRowFrame);editorRowFrame=requestAnimationFrame(editorRenderRows);});
 new ResizeObserver(()=>editorRenderRows()).observe($('editor-scroll'));
@@ -32,6 +34,8 @@ let editorPlaceholderKey='selectAsset';
 function editorPlaceholder(key){editorPlaceholderKey=key;const placeholder=$('editor-preview-empty'),content=$('editor-preview-content');if(content.hidden)content.before(placeholder);else content.append(placeholder);const message=$('editor-preview-message');message.dataset.i18n=key;message.textContent=t(key);$('editor-preview-empty').hidden=false;editorPreviewPlayback();}
 function editorPreviewPlayback(){const video=$('editor-preview-video');if(!$('editor-preview-empty').hidden&&$('page-editor').classList.contains('active')&&!document.hidden)video.play().catch(()=>{});else video.pause();}
 function editorPreview(value){
+ $('editor-paint-open').hidden=true;
+ $('editor-structure-open').hidden=!value||!['GameObject','MonoBehaviour','PrefabInstance','Prefab','Transform','RectTransform','SpriteRenderer','MeshFilter'].includes(value.Type);
  const image=$('editor-image');image.onload=null;image.onerror=null;image.removeAttribute('src');
  $('editor-audio').pause();$('editor-audio').removeAttribute('src');$('editor-audio').hidden=true;
  $('editor-image-wrap').hidden=true;$('editor-text').hidden=true;$('editor-text-edit').hidden=true;$('editor-preview-error').hidden=true;
@@ -45,7 +49,7 @@ function editorPreview(value){
  }
  if(value.Image){
   editorPlaceholder('loadingPreview');
-  image.onload=()=>{image.onload=null;$('editor-image-wrap').hidden=false;$('editor-preview-empty').hidden=true;editorImageReset();editorPreviewPlayback();};
+  image.onload=()=>{image.onload=null;$('editor-paint-open').hidden=false;$('editor-image-wrap').hidden=false;$('editor-preview-empty').hidden=true;editorImageReset();editorPreviewPlayback();};
   image.onerror=()=>{image.onerror=null;editorPlaceholder('previewUnavailable');};image.src=value.Image;
  }else if(!value.Audio&&value.Text==null)editorPlaceholder('previewUnavailable');
  if(value.Error){$('editor-preview-error').textContent=value.Error;$('editor-preview-error').hidden=false;}

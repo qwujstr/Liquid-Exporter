@@ -17,7 +17,7 @@ public sealed record ModderPreview(string FileId, string AssetId, string Name, s
 public sealed record ModderSaveResult(string[] Files, string BackupFolder);
 
 /// <summary>AssetsTools.NET workspace. Reads lazily; replacements stay in memory until a verified atomic save.</summary>
-public sealed class AssetModder : IDisposable
+public sealed partial class AssetModder : IDisposable
 {
     private sealed class Document(string path, string root)
     {
@@ -30,16 +30,19 @@ public sealed class AssetModder : IDisposable
         public readonly List<AssetsFileInstance> Members = [];
         public List<ModderAsset>? Assets;
         public readonly Dictionary<string, byte[]> Edits = [];
+        public readonly List<(int Member, AssetsFileExternal External)> NewExternals = [];
+        public readonly List<(int Member, AssetFileInfo Info)> AddedAssets = [];
     }
     private readonly AssetsManager manager = new() { UseQuickLookup = true, UseTemplateFieldCache = true, UseMonoTemplateFieldCache = true };
     private readonly List<Document> documents = [];
-    private readonly Stack<(string File, string Asset, byte[]? Previous)> history = [];
+    private readonly Stack<(string File, string Asset, byte[]? Previous, Action? Revert)> history = [];
     public string Root { get; }
     public bool Modified => documents.Any(d => d.Edits.Count > 0);
     public ModderFile[] Files => documents.Select(Describe).ToArray();
 
-    public AssetModder(string input, string classData)
+    public AssetModder(string input, string classData, string? schemaWorker = null)
     {
+        this.schemaWorker = schemaWorker ?? Path.Combine(AppContext.BaseDirectory, "worker", "Reaper.Worker.dll");
         input = Path.GetFullPath(input);
         if (!Directory.Exists(input) && !File.Exists(input)) throw new FileNotFoundException("Game folder or Unity file not found.", input);
         Root = Directory.Exists(input) ? input : Path.GetDirectoryName(input)!;
@@ -63,7 +66,8 @@ public sealed class AssetModder : IDisposable
     {
         string name = Path.GetFileName(path);
         if (path.Split(Path.DirectorySeparatorChar).Any(part => part is ".liquid-backups" || part.StartsWith("Liquid_", StringComparison.OrdinalIgnoreCase))) return false;
-        return name.Equals("data.unity3d", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".assets", StringComparison.OrdinalIgnoreCase)
+        return name.Equals("globalgamemanagers", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("data.unity3d", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".assets", StringComparison.OrdinalIgnoreCase)
             || Regex.IsMatch(name, @"^sharedassets\.?\d+(\.assets)?$", RegexOptions.IgnoreCase)
             || Regex.IsMatch(name, @"^level\d+$", RegexOptions.IgnoreCase) || name.EndsWith(".bundle", StringComparison.OrdinalIgnoreCase);
     }
@@ -91,6 +95,10 @@ public sealed class AssetModder : IDisposable
         {
             manager.LoadClassDatabaseFromPackage(member.file.Metadata.UnityVersion);
             int index = d.Members.IndexOf(member);
+            foreach (var extra in d.NewExternals.Where(e => e.Member == index))
+                member.file.Metadata.Externals.Add(extra.External);
+            foreach (var added in d.AddedAssets.Where(e => e.Member == index))
+                member.file.Metadata.AddAssetInfo(added.Info);
             foreach (var info in member.file.Metadata.AssetInfos)
                 if (d.Edits.TryGetValue(index + ":" + info.PathId, out var bytes)) info.SetNewData(bytes);
         }
@@ -111,6 +119,10 @@ public sealed class AssetModder : IDisposable
                     string className = Enum.GetName(typeof(AssetClassID), info.TypeId) ?? "Class " + info.TypeId;
                     string name;
                     try { name = AssetHelper.GetAssetNameFast(member.file, manager.ClassDatabase, info); } catch { name = className; }
+                    if (info.TypeId == 114 && (string.IsNullOrEmpty(name) || name == "MonoBehaviour"))
+                        name = ScriptName(member, info) ?? name;
+                    if (info.IsReplacerPreviewable && info.TypeId is 28 or 213)
+                        name = Field(member, info)["m_Name"].AsString;
                     if (string.IsNullOrEmpty(name)) name = className;
                     d.Assets.Add(new(index + ":" + info.PathId, name, className, info.TypeId, info.PathId.ToString(), member.name, info.ByteSize, false));
                 }
@@ -207,6 +219,13 @@ public sealed class AssetModder : IDisposable
         if (format == "dump") return "json";
         return info.TypeId switch { 28 or 213 => "png", 49 => "txt", 83 => ModderAudio.Decode(file, Field(file, info), Root).Extension, _ => "bin" };
     }
+    public void ImportImage(string fileId, string assetId, byte[] image)
+    {
+        if (Resolve(fileId, assetId).Info.TypeId is not (28 or 213))
+            throw new InvalidDataException("Select a Sprite or Texture2D.");
+        Import(fileId, assetId, "decoded", image);
+    }
+
     public void Import(string fileId, string assetId, string format, byte[] bytes)
     {
         var (d, file, info) = Resolve(fileId, assetId);
@@ -245,11 +264,7 @@ public sealed class AssetModder : IDisposable
                     var image = Texture(target.File, target.Info, target.Field);
                     var rect = SpriteRect(target.RenderData, image.Width, image.Height);
                     int rotation = Rotation(target.RenderData);
-                    for (int row = 0; row < imported.Height; row++) for (int col = 0; col < imported.Width; col++)
-                    {
-                        var (sx, sy) = PackedCoordinate(col, row, rect.W, rect.H, rotation);
-                        imported.Data.AsSpan((row * imported.Width + col) * 4, 4).CopyTo(image.Pixels.AsSpan(((rect.Y + sy) * image.Width + rect.X + sx) * 4, 4));
-                    }
+                    WriteSpritePixels(imported, image.Pixels, image.Width, rect, rotation);
                     ReplaceTexture(target.Field, image.Pixels, image.Width, image.Height);
                     var targetDoc = Owner(target.File); string targetKey = targetDoc.Members.IndexOf(target.File) + ":" + target.Info.PathId;
                     SetEdit(targetDoc, targetKey, target.Info, target.Field.WriteToByteArray(target.File.file.Header.Endianness));
@@ -263,9 +278,9 @@ public sealed class AssetModder : IDisposable
         }
         SetEdit(d, assetId, info, replacement);
     }
-    private void SetEdit(Document doc, string key, AssetFileInfo info, byte[] bytes)
+    private void SetEdit(Document doc, string key, AssetFileInfo info, byte[] bytes, Action? revert = null)
     {
-        history.Push((doc.Id, key, doc.Edits.GetValueOrDefault(key)));
+        history.Push((doc.Id, key, doc.Edits.GetValueOrDefault(key), revert));
         doc.Edits[key] = bytes; info.SetNewData(bytes);
     }
     public void Undo()
@@ -274,11 +289,11 @@ public sealed class AssetModder : IDisposable
         var (doc, _, info) = Resolve(change.File, change.Asset);
         if (change.Previous is null) { doc.Edits.Remove(change.Asset); info.Replacer = null; }
         else { doc.Edits[change.Asset] = change.Previous; info.SetNewData(change.Previous); }
+        change.Revert?.Invoke();
     }
     public void Discard()
     {
-        foreach (var d in documents) { d.Edits.Clear(); foreach (var m in d.Members) foreach (var i in m.file.Metadata.AssetInfos) i.Replacer = null; }
-        history.Clear();
+        while (history.Count > 0) Undo();
     }
     private Document Owner(AssetsFileInstance file)
     {
@@ -313,6 +328,17 @@ public sealed class AssetModder : IDisposable
         if (ext.file is null || ext.info is null) throw new IOException("Sprite texture dependency could not be resolved.");
         return (ext.file, ext.info, Field(ext.file, ext.info), rd);
     }
+    private static void WriteSpritePixels(ImageResult imported, byte[] pixels, int width, (int X, int Y, int W, int H) rect, int rotation)
+    {
+        for (int row = 0; row < imported.Height; row++)
+            for (int col = 0; col < imported.Width; col++)
+            {
+                var (x, y) = PackedCoordinate(col, row, rect.W, rect.H, rotation);
+                imported.Data.AsSpan((row * imported.Width + col) * 4, 4)
+                    .CopyTo(pixels.AsSpan(((rect.Y + y) * width + rect.X + x) * 4, 4));
+            }
+    }
+
     private static int Rotation(AssetTypeValueField rd)
     {
         uint settings = rd["settingsRaw"].IsDummy ? 0 : rd["settingsRaw"].AsUInt;
@@ -351,10 +377,10 @@ public sealed class AssetModder : IDisposable
         var texture = TextureFile.ReadTextureFile(field);
         if (texture.m_Width <= 0 || texture.m_Height <= 0 || (long)texture.m_Width * texture.m_Height > 67108864) throw new InvalidDataException("Texture dimensions exceed the preview limit.");
         byte[] data = texture.FillPictureData(file);
-        using var stream = new MemoryStream();
-        if (data is null || !texture.DecodeTextureImage(data, stream, ImageExportType.Png)) throw new IOException("This texture format could not be decoded.");
-        var image = ImageResult.FromMemory(stream.ToArray(), StbImageSharp.ColorComponents.RedGreenBlueAlpha);
-        return (image.Data, image.Width, image.Height);
+        byte[]? rgba = data is null ? null : texture.DecodeTextureRaw(data, useBgra: false);
+        if (rgba is null) throw new IOException("This texture format could not be decoded.");
+        TextureOperations.FlipBGRA32Vertically(rgba, texture.m_Width, texture.m_Height);
+        return (rgba, texture.m_Width, texture.m_Height);
     }
     private static void ReplaceTexture(AssetTypeValueField field, byte[] pixels, int width, int height)
     {
@@ -433,7 +459,7 @@ public sealed class AssetModder : IDisposable
                 catch { original.Dispose(); throw; }
                 committed.Add((item.Doc, original));
             }
-            foreach (var d in changed) { d.Edits.Clear(); d.Assets = null; d.Hash = null; }
+            foreach (var d in changed) { d.Edits.Clear(); d.NewExternals.Clear(); d.AddedAssets.Clear(); d.Assets = null; d.Hash = null; }
             history.Clear();
             return new(changed.Select(d => d.Path).ToArray(), "");
         }
@@ -474,7 +500,7 @@ public sealed class AssetModder : IDisposable
             for (int index = 0; index < members.Count; index++)
             {
                 var before = d.Members[index].file.Metadata.AssetInfos; var after = members[index].file.Metadata.AssetInfos;
-                if (before.Count != after.Count || !before.Select(a => (a.PathId, a.TypeId)).SequenceEqual(after.Select(a => (a.PathId, a.TypeId)))) throw new IOException("Written asset IDs/types do not match the original file.");
+                if (before.Count != after.Count || !before.Select(a => (a.PathId, a.TypeId)).OrderBy(a => a.PathId).SequenceEqual(after.Select(a => (a.PathId, a.TypeId)).OrderBy(a => a.PathId))) throw new IOException("Written asset IDs/types do not match the original file.");
                 foreach (var edit in d.Edits.Where(e => e.Key.StartsWith(index + ":", StringComparison.Ordinal)))
                 {
                     long id = long.Parse(edit.Key[(edit.Key.IndexOf(':') + 1)..]);
@@ -484,5 +510,15 @@ public sealed class AssetModder : IDisposable
         }
         finally { check.UnloadAll(); }
     }
-    public void Dispose() => manager.UnloadAll(true);
+    public void Dispose()
+    {
+        if (manager.MonoTempGenerator is IDisposable generator) generator.Dispose();
+        manager.UnloadAll(true);
+        if (generatedSchemas is not null)
+        {
+            try { Directory.Delete(generatedSchemas, recursive: true); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
 }

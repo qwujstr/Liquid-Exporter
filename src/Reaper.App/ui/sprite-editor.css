@@ -1,0 +1,89 @@
+#paint-dialog { width: min(1250px,calc(100vw - 32px)); height: min(860px,calc(100dvh - 32px)); }
+.asset-dialog[open]::backdrop { animation: dialog-backdrop .18s ease-out both; }
+.asset-dialog.dialog-closing { pointer-events: none; }
+.asset-dialog.dialog-closing::backdrop { animation: dialog-backdrop-out .145s ease-out both; }
+@keyframes dialog-backdrop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialog-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes editor-arrive { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.structure-populate, #structure-picker:not([hidden]), .editor-feature-actions:has(> :not([hidden])) {
+    animation: editor-arrive .18s ease-out both;
+}
+.paint-workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; }
+#paint-tools {
+    display: grid;
+    grid-template-columns: repeat(2,36px);
+    align-content: start;
+    gap: 4px;
+    overflow: auto;
+    background: #151515;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 5px;
+}
+#paint-tools button {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #bbb;
+}
+#paint-tools button[aria-pressed="true"] { background: #333; border-color: #666; color: #fff; }
+#paint-tools button:hover:enabled { background: #262626; color: #fff; }
+#paint-tools svg { width: 19px; height: 19px; }
+#paint-options output { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+#paint-viewport {
+    position: relative;
+    overflow: hidden;
+    touch-action: none;
+    background: #202020;
+    border: 1px solid #373737;
+    border-radius: 11px;
+    padding: 0;
+    user-select: none;
+    cursor: crosshair;
+}
+#paint-viewport[data-tool=pan] { cursor: grab; }
+#paint-viewport.paint-panning { cursor: grabbing; }
+#paint-viewport.paint-precision { cursor: none; }
+#paint-plane {
+    position: absolute;
+    pointer-events: none;
+    outline: 1px solid #aaa;
+    background: repeating-conic-gradient(#464646 0% 25%,#313131 0% 50%) 0 0/18px 18px;
+    box-shadow: 0 8px 34px #0009;
+}
+#paint-canvas { display: block; width: 100%; height: 100%; background: none; image-rendering: pixelated; }
+#paint-pixels {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(to right,#0005 1px,transparent 1px),
+        linear-gradient(to bottom,#0005 1px,transparent 1px);
+    background-size: var(--pixel-step) var(--pixel-step);
+}
+#paint-cursor, #paint-selection { position: absolute; pointer-events: none; }
+#paint-cursor { border: 1px solid white; box-shadow: 0 0 0 1px black, inset 0 0 0 1px #0008; }
+#paint-cursor.round { border-radius: 50%; }
+#paint-selection { border: 1px dashed #fff; outline: 1px solid #000; }
+.asset-row-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.asset-row-name > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.asset-thumb {
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    flex: 0 0 27px;
+    border: 1px solid #333;
+    border-radius: 5px;
+    color: #777;
+    background: repeating-conic-gradient(#242424 0% 25%,#141414 0% 50%) 0 0/8px 8px;
+}
+.asset-thumb > svg { height: 16px; width: 16px; }
+.asset-thumb > img { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; image-rendering: pixelated; animation: editor-arrive .15s ease-out both; }
+@media (max-width: 660px) {
+    #paint-tools { grid-template-columns: 32px; padding: 4px; }
+    #paint-tools button { width: 32px; height: 32px; }
+}

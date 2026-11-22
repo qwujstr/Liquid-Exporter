@@ -22,7 +22,7 @@ public sealed partial class MainForm : Form
 
     public MainForm(string[] args)
     {
-        Text = "Liquid";
+        Text = "Liquid Exporter";
         Size = new Size(1280, 900);
         MinimumSize = new Size(960, 720);
         StartPosition = FormStartPosition.CenterScreen;
@@ -131,12 +131,17 @@ public sealed partial class MainForm : Form
         catch (Exception ex)
         {
             MessageBox.Show(this, "Unable to start the interface. Microsoft Edge WebView2 Runtime is required.\n\n" + ex.Message,
-                "Liquid", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                "Liquid Exporter", MessageBoxButtons.OK, MessageBoxIcon.Error);
             Close();
         }
     }
 
-    private object EngineStatus() => new { assetRipper = File.Exists(savedRequest.AssetRipperPath), worker = File.Exists(savedRequest.WorkerPath) };
+    private static bool GhidraAvailable =>
+        File.Exists(Path.Combine(AppContext.BaseDirectory, "worker", "ghidra", "LiquidAnalyze.java"))
+        && (Directory.Exists(Path.Combine(AppContext.BaseDirectory, "engines", "Ghidra"))
+            || Directory.Exists(Environment.GetEnvironmentVariable("LIQUID_GHIDRA_HOME")));
+
+    private object EngineStatus() => new { assetRipper = File.Exists(savedRequest.AssetRipperPath), worker = File.Exists(savedRequest.WorkerPath), ghidra = GhidraAvailable };
     private static string FindAssetRipper(string previous)
     {
         if (File.Exists(previous)) return previous;
@@ -305,12 +310,18 @@ public sealed partial class MainForm : Form
         await editorGate.WaitAsync();
         try
         {
-            string draftSnapshot = view.CoreWebView2 is not null ? await view.CoreWebView2.ExecuteScriptAsync("({drafts:window.liquidEditor?.drafts()??[]})") : "{}";
+            string draftSnapshot = view.CoreWebView2 is not null ? await view.CoreWebView2.ExecuteScriptAsync("({drafts:window.liquidEditor?.drafts()??[],unappliedImage:window.liquidEditor?.unappliedImage?.()??false})") : "{}";
             using var draftDocument = JsonDocument.Parse(draftSnapshot);
+            if (draftDocument.RootElement.TryGetProperty("unappliedImage", out var imageDraft) && imageDraft.GetBoolean()
+                && MessageBox.Show(this, "Discard unapplied image edits and close?", "Liquid Exporter", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            {
+                shuttingDown = false;
+                return;
+            }
             SetEditorDrafts(draftDocument.RootElement);
             if (HasEditorChanges)
             {
-                var answer = MessageBox.Show(this, "Save your asset changes before closing?", "Liquid", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                var answer = MessageBox.Show(this, "Save your asset changes before closing?", "Liquid Exporter", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (answer == DialogResult.Cancel) { shuttingDown = false; return; }
                 if (answer == DialogResult.Yes) await Task.Run(SaveEditorChanges);
             }
@@ -321,7 +332,7 @@ public sealed partial class MainForm : Form
             closing = true;
             Close();
         }
-        catch (Exception ex) { shuttingDown = false; MessageBox.Show(this, ex.Message, "Liquid", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception ex) { shuttingDown = false; MessageBox.Show(this, ex.Message, "Liquid Exporter", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         finally { editorGate.Release(); }
     }
 
@@ -437,6 +448,13 @@ public sealed partial class MainForm : Form
                 await view.CoreWebView2.ExecuteScriptAsync("window.liquidEditor.select('Texture2D')");
                 await Task.Delay(900);
                 await Capture("asset-editor.png");
+                await view.CoreWebView2.ExecuteScriptAsync("document.querySelector('#editor-paint-open').click()");
+                await Task.Delay(250);
+                File.WriteAllText(Path.Combine(testDirectory!, "sprite-editor-check.json"),
+                    await view.CoreWebView2.ExecuteScriptAsync("({open:document.querySelector('#paint-dialog').open, kernel:!!pixelKernel, thumbnails:document.querySelectorAll('.asset-thumb img').length, image:document.querySelector('#paint-canvas').width})"));
+                await Capture("sprite-editor.png");
+                await view.CoreWebView2.ExecuteScriptAsync("document.querySelector('#paint-close').click()");
+                await Task.Delay(200);
                 File.WriteAllText(Path.Combine(testDirectory!, "editor-ui-check.json"), await view.CoreWebView2.ExecuteScriptAsync("({...window.liquidEditor.check(),...window.liquidEditor.state()})"));
                 await view.CoreWebView2.ExecuteScriptAsync("(() => {const wrap=document.querySelector('#editor-image-wrap'),r=wrap.getBoundingClientRect(),s=window.liquidEditor.state();wrap.dispatchEvent(new WheelEvent('wheel',{deltaY:-150,clientX:r.left+r.width/2,clientY:r.top+r.height/2,bubbles:true,cancelable:true}));const after=window.liquidEditor.state();window.previewZoomResult={before:s.zoom,after:after.zoom,beforePanX:after.panX,beforePanY:after.panY};})()");
                 using (var bounds = JsonDocument.Parse(await view.CoreWebView2.ExecuteScriptAsync("(() => {const r=document.querySelector('#editor-image-wrap').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()")))
